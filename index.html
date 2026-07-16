@@ -80,6 +80,10 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}in
 .dev-badge{display:none;position:fixed;left:14px;top:12px;z-index:41000;padding:6px 10px;border-radius:10px;background:rgba(255,47,92,.16);border:1px solid rgba(255,47,92,.32);font:10px Cascadia Code,monospace;color:#ff9eb3}.developer-mode .dev-badge{display:block}.developer-mode .window{outline:1px dashed rgba(255,85,125,.2)}
 
 @media(max-width:780px){:root{--taskbar:63px}.taskbar-wrap{width:calc(100vw - 12px);bottom:6px}.taskbar{min-width:0;width:100%;padding:7px 112px 7px 7px;overflow:hidden}.task-button:nth-child(n+7){display:none}.taskbar-tray{right:7px;padding:0 8px}.taskbar-tray .tray-icons{display:none}.wallpaper-icons{right:8px;top:70px;grid-template-columns:96px;max-height:calc(100vh - 150px);overflow:auto}.start-panel{padding:16px}.start-apps{grid-template-columns:repeat(4,1fr)}.recommended{grid-template-columns:1fr}.recommend:nth-child(n+3){display:none}.window{left:5px!important;top:5px!important;width:calc(100vw - 10px)!important;height:calc(100vh - var(--taskbar) - 10px)!important;resize:none;border-radius:17px}.app-layout,.explorer-layout,.copilot-layout,.media-layout,.mail-layout,.code-layout,.registry,.arcade-shell{grid-template-columns:1fr}.app-sidebar,.explorer-layout>.app-sidebar,.copilot-skills,.album,.mail-folders,.code-files,.registry-tree{display:none}.security-status{grid-template-columns:repeat(2,1fr)}.grid3,.grid4{grid-template-columns:repeat(2,1fr)}.desktop-thumbs{grid-template-columns:1fr}.desktop-thumb{min-height:120px}.arcade-nav{display:flex;gap:5px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line2);padding:7px}.game-choice{min-width:130px;margin:0}.arcade-main{padding:8px}.login-time{font-size:60px;top:3%}.login-date{top:calc(3% + 70px)}.clock-grid{grid-template-columns:1fr}.mail-list{display:none}.recovery-options{grid-template-columns:1fr}.desktop-badge{display:none}}
+
+@keyframes bootAutoFill{from{width:0}to{width:100%}}
+#boot.boot-running #bootBar{animation:bootAutoFill 5.2s linear forwards}
+#boot.boot-running.safe-boot #bootBar{animation-duration:3.1s}
 </style>
 </head>
 <body>
@@ -233,6 +237,16 @@ function installedApps(){return state.installed.filter(id=>W12.apps[id])}
 function addHistory(type,label){state.history.unshift({type,label,time:Date.now()});state.history=state.history.slice(0,20);save()}
 
 function renderDesktop(){const holder=$('#desktopIcons');if(!holder)return;const desktopSets=[[{app:'explorer'},{app:'edge'},{app:'copilot'},{app:'security'},{app:'settings'},{app:'notepad'},{app:'store'},{app:'arcade'}],[{app:'arcade'},{title:'Neon Racer',icon:'🏎️',game:'racing'},{title:'Cyber Snake',icon:'🐍',game:'snake'},{title:'Sky Jumper',icon:'🦘',game:'jumper'},{title:'Star Defender',icon:'🚀',game:'shooter'},{title:'Quantum Pong',icon:'🏓',game:'pong'},{title:'Block Matrix',icon:'🧩',game:'tetris'},{title:'Neon Breakout',icon:'🧱',game:'breakout'}],[{app:'area51'},{app:'security'},{app:'terminal'},{app:'registry'},{app:'code'},{app:'taskmanager'},{app:'copilot'},{app:'achievements'}]];const items=desktopSets[state.desktop]||desktopSets[0];holder.innerHTML='';items.forEach(item=>{const b=document.createElement('button');b.className='desktop-icon';if(item.app){const a=appMeta(item.app);b.dataset.app=item.app;b.innerHTML=`<span class="iconbox">${a.icon}</span><small>${escapeHTML(a.title)}</small>`;b.ondblclick=()=>openApp(item.app)}else if(item.game){b.dataset.game=item.game;b.innerHTML=`<span class="iconbox">${item.icon}</span><small>${escapeHTML(item.title)}</small>`;b.ondblclick=()=>openArcadeGame(item.game)}b.onclick=()=>{$$('.desktop-icon').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')};holder.append(b)});const desktopFiles=state.files.filter(f=>f.parent==='desktop'&&!f.system).slice(0,4);desktopFiles.forEach(f=>{const b=document.createElement('button');b.className='desktop-icon';b.innerHTML=`<span class="iconbox">${fileIcon(f)}</span><small>${escapeHTML(f.name)}</small>`;b.ondblclick=()=>f.type==='folder'?openApp('explorer',{folder:f.id}):openFile(f.id);b.onclick=()=>{$$('.desktop-icon').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')};holder.append(b)});$('#desktopName').textContent=`Desktop ${state.desktop+1} · ${state.desktopNames[state.desktop]}`;refreshWallpaper()}
+function renderStart(){
+ const holder=$('#startApps'),recommended=$('#recommended');if(!holder||!recommended)return;
+ const pins=['edge','explorer','copilot','security','settings','arcade','store','notepad','terminal','calculator','paint','media'];
+ holder.innerHTML='';
+ pins.filter(id=>state.installed.includes(id)).forEach(id=>{const a=appMeta(id),b=document.createElement('button');b.className='start-app';b.dataset.name=a.title;b.innerHTML=`<span class="iconbox">${a.icon}</span><small>${escapeHTML(a.title)}</small>`;b.onclick=()=>openApp(id);holder.append(b)});
+ const files=[...state.files].filter(f=>!f.system&&f.type!=='folder').sort((a,b)=>(b.modified||0)-(a.modified||0)).slice(0,4);
+ recommended.innerHTML='';
+ if(!files.length){recommended.innerHTML='<div class="empty">No recent files yet.</div>';return}
+ files.forEach(f=>{const b=document.createElement('button');b.className='recommend';b.innerHTML=`<span class="iconbox">${fileIcon(f)}</span><span><b>${escapeHTML(f.name)}</b><small>${new Date(f.modified||Date.now()).toLocaleDateString()}</small></span>`;b.onclick=()=>openFile(f.id);recommended.append(b)});
+}
 function renderTaskbar(){const holder=$('#taskbarApps');if(!holder)return;const pins=['explorer','edge','copilot','security','arcade','store'];const ids=[...new Set([...pins,...openWindows.keys()])].filter(id=>state.installed.includes(id));holder.innerHTML='';ids.forEach(id=>{const a=appMeta(id),b=document.createElement('button');b.className='task-button'+(openWindows.has(id)?' active':'');b.title=a.title;b.innerHTML=`<span class="iconbox">${a.icon}</span>`;b.onclick=()=>{const w=openWindows.get(id);if(w){if(w.classList.contains('open'))w.classList.remove('open');else{w.classList.add('open');focusWindow(w)}}else openApp(id)};holder.append(b)})}
 function renderNotifications(){const holder=$('#notificationList');if(!holder)return;if(!state.notifications.length){holder.innerHTML='<div class="empty">You are all caught up.</div>';return}holder.innerHTML='';state.notifications.forEach(n=>{const el=document.createElement('article');el.className='notification';el.innerHTML=`<div class="row between"><h4>${escapeHTML(n.title)}</h4><small class="muted tiny">${new Date(n.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</small></div><p>${escapeHTML(n.text)}</p>`;if(n.actions?.length){const acts=document.createElement('div');acts.className='notification-actions';n.actions.forEach(a=>{const b=document.createElement('button');b.className='btn';b.textContent=a.label;b.onclick=()=>handleNotificationAction(a.action,n);acts.append(b)});el.append(acts)}holder.append(el)})}
 function handleNotificationAction(action,n){if(action==='scan')openApp('security',{scan:true});if(action==='update')toast('Windows Update','Update scheduled for tonight.');if(action==='dismiss'){state.notifications=state.notifications.filter(x=>x.id!==n.id);save();renderNotifications()}}
@@ -267,7 +281,41 @@ function sleep(){playTone('shutdown');$('#sleepScreen').style.display='grid';set
 function restart(){playTone('shutdown');$('#shell').classList.add('hidden');$('#boot').classList.remove('hidden');$('#boot').classList.remove('hidden');setTimeout(()=>bootSequence(true),450)}
 function showBSOD(){const bs=$('#bsod');bs.style.display='grid';let p=0;$('#bsodPercent').textContent=p;const t=setInterval(()=>{p+=Math.ceil(Math.random()*9);if(p>=100){p=100;clearInterval(t);setTimeout(()=>{bs.style.display='none';restart()},700)}$('#bsodPercent').textContent=p},180)}
 function signIn(){state.loggedIn=true;state.firstRun=false;save();$('#login').classList.add('hidden');$('#shell').classList.remove('hidden');refreshShell();playTone('unlock');achievement('firstBoot');setTimeout(()=>notify('Windows Security','No active threats. Device protection is operating normally.',[{label:'Run scan',action:'scan'},{label:'Dismiss',action:'dismiss'}]),1300);setTimeout(()=>notify('Area 51 Operations','A classified signal is waiting for analysis.',[{label:'Investigate',action:'signal'},{label:'Dismiss',action:'dismiss'}]),5200);scheduleEvents()}
-function bootSequence(restarting=false){$('#recovery').style.display='none';$('#boot').classList.remove('hidden');$('#login').classList.add('hidden');$('#shell').classList.add('hidden');const msgs=state.safeMode?['Loading essential drivers…','Disabling visual effects…','Starting Safe Mode…']:['Initializing secure kernel…','Verifying TPM and Secure Boot…','Loading neural shell services…','Connecting Microsoft Defender…','Mounting persistent virtual drive…','Calibrating Area 51 signal filter…','Starting Windows 12 Ultra…'];let i=0,p=0;$('#bootBar').style.width='0';$('#bootStatus').textContent=msgs[0];playTone('boot');const t=setInterval(()=>{p+=6+Math.random()*9;p=Math.min(100,p);$('#bootBar').style.width=p+'%';const ni=Math.min(msgs.length-1,Math.floor((p/100)*msgs.length));if(ni!==i){i=ni;$('#bootStatus').textContent=msgs[i]}if(p>=100){clearInterval(t);setTimeout(()=>{$('#boot').classList.add('hidden');if(state.loggedIn&&!state.firstRun&&!restarting){$('#shell').classList.remove('hidden');refreshShell()}else $('#login').classList.remove('hidden')},550)}},230)}
+let bootSession=0,bootFallbackTimer=0,bootFrame=0;
+function finishBoot(session,restarting=false){
+ if(session!==bootSession)return;
+ clearTimeout(bootFallbackTimer);cancelAnimationFrame(bootFrame);
+ const boot=$('#boot'),bar=$('#bootBar');
+ boot.classList.remove('boot-running','safe-boot');bar.style.animation='none';bar.style.width='100%';
+ $('#bootStatus').textContent='Windows is ready';
+ setTimeout(()=>{
+  if(session!==bootSession)return;
+  boot.classList.add('hidden');
+  if(state.loggedIn&&!state.firstRun&&!restarting){$('#shell').classList.remove('hidden');refreshShell()}
+  else $('#login').classList.remove('hidden');
+ },180);
+}
+function bootSequence(restarting=false){
+ const session=++bootSession;
+ clearTimeout(bootFallbackTimer);cancelAnimationFrame(bootFrame);
+ const boot=$('#boot'),bar=$('#bootBar'),status=$('#bootStatus');
+ $('#recovery').style.display='none';boot.classList.remove('hidden');boot.classList.toggle('safe-boot',!!state.safeMode);$('#login').classList.add('hidden');$('#shell').classList.add('hidden');
+ const msgs=state.safeMode?['Loading essential drivers…','Disabling visual effects…','Starting Safe Mode…']:['Initializing secure kernel…','Verifying TPM and Secure Boot…','Loading neural shell services…','Connecting Microsoft Defender…','Mounting persistent virtual drive…','Calibrating Area 51 signal filter…','Starting Windows 12 Ultra…'];
+ const duration=state.safeMode?3000:5000,start=performance.now();
+ bar.style.animation='none';bar.style.width='0%';status.textContent=msgs[0];void bar.offsetWidth;boot.classList.add('boot-running');bar.style.animation='';playTone('boot');
+ const tick=now=>{
+  if(session!==bootSession)return;
+  const elapsed=Math.max(0,now-start),progress=Math.min(100,(elapsed/duration)*100);
+  bar.style.width=progress+'%';
+  const messageIndex=Math.min(msgs.length-1,Math.floor(progress/100*msgs.length));status.textContent=msgs[messageIndex];
+  if(progress>=100)finishBoot(session,restarting);else bootFrame=requestAnimationFrame(tick);
+ };
+ bootFrame=requestAnimationFrame(tick);
+ // Hard deadline: the boot can never remain on screen indefinitely.
+ bootFallbackTimer=setTimeout(()=>finishBoot(session,restarting),duration+900);
+ // CSS animation provides another independent completion signal.
+ bar.onanimationend=()=>finishBoot(session,restarting);
+}
 function scheduleEvents(){clearTimeout(scheduleEvents.a);clearTimeout(scheduleEvents.b);scheduleEvents.a=setTimeout(()=>{if(Math.random()>.35)notify('Microsoft Store','Three application updates are ready.',[{label:'Update tonight',action:'update'},{label:'Dismiss',action:'dismiss'}])},17000);scheduleEvents.b=setTimeout(()=>{if(!state.story.signalAnalyzed){$('#signalStatus').textContent='Weak anomaly detected';notify('Unknown telemetry','A repeating encrypted transmission was detected from Sector 51.',[{label:'Investigate',action:'signal'}])}},31000)}
 
 function renderWeather(){const canvas=$('#weatherFx'),ctx=canvas.getContext('2d');let parts=[],last=0;function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}resize();addEventListener('resize',resize);function mode(){if(state.weather!=='auto')return state.weather;const m=new Date().getMonth();return m<3||m>9?'snow':'clear'}function frame(t){const dt=Math.min(.04,(t-last)/1000||0);last=t;ctx.clearRect(0,0,innerWidth,innerHeight);const m=mode();if(m==='rain'||m==='snow'){const count=m==='rain'?150:85;while(parts.length<count)parts.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,v:m==='rain'?550+Math.random()*250:40+Math.random()*70,s:Math.random()*2+1,w:Math.random()*20-10});parts.forEach(p=>{p.y+=p.v*dt;p.x+=p.w*dt;if(p.y>innerHeight+20){p.y=-20;p.x=Math.random()*innerWidth}ctx.strokeStyle=m==='rain'?'rgba(165,205,255,.28)':'rgba(255,255,255,.6)';ctx.lineWidth=p.s;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+(m==='rain'?-5:0),p.y+(m==='rain'?18:2));ctx.stroke()})}else parts=[];requestAnimationFrame(frame)}requestAnimationFrame(frame)}
@@ -287,7 +335,7 @@ $('#trayButton').onclick=e=>{e.stopPropagation();togglePanel($('#quickPanel'))};
 $('#powerButton').onclick=e=>{e.stopPropagation();$('#powerMenu').classList.toggle('show')};
 $$('[data-power]').forEach(b=>b.onclick=()=>{const p=b.dataset.power;if(p==='lock')lock();if(p==='sleep')sleep();if(p==='restart')restart();if(p==='shutdown')shutdown()});
 $('#signIn').onclick=signIn;$('#signInPassword').onclick=async()=>{const val=await dialog('Password sign-in','This simulation accepts any password.',[['Continue',true,'primary'],['Cancel',false]],'<input id="passwordInput" class="field" type="password" placeholder="Password">');if(val)signIn()};
-$('#bootSkip').onclick=()=>{$('#boot').classList.add('hidden');$('#login').classList.remove('hidden')};$('#bootRecovery').onclick=()=>{$('#boot').classList.add('hidden');$('#recovery').style.display='grid'};
+$('#bootSkip').onclick=()=>finishBoot(bootSession,false);$('#bootRecovery').onclick=()=>{$('#boot').classList.add('hidden');$('#recovery').style.display='grid'};
 $$('[data-recovery]').forEach(b=>b.onclick=async()=>{const a=b.dataset.recovery;if(a==='continue'){state.safeMode=false;bootSequence()}if(a==='safe'){state.safeMode=true;save();bootSequence()}if(a==='repair'){b.innerHTML='<b>Startup Repair</b><p class="muted small">Scanning boot configuration…</p>';setTimeout(()=>{b.innerHTML='<b>Startup Repair</b><p class="muted small">No problems found. Windows can start normally.</p>'},1700)}if(a==='reset'){const yes=await dialog('Reset simulation','This deletes virtual files, installed-app state, settings, and achievements.',[['Reset',true,'danger'],['Cancel',false]]);if(yes){localStorage.removeItem(STORAGE);location.reload()}}});
 $('#quickBrightness').oninput=e=>setBrightness(e.target.value);$('#quickVolume').oninput=e=>{state.volume=+e.target.value;save();playTone('click')};
 $$('.quick-toggle').forEach(b=>{const k=b.dataset.toggle;b.classList.toggle('on',!!state.quick[k]);b.onclick=()=>{state.quick[k]=!state.quick[k];if(k==='airplane'&&state.quick[k]){state.quick.wifi=false;state.quick.bluetooth=false}if(k==='night')document.documentElement.style.setProperty('--wall-brightness',state.quick.night?.72:state.brightness/100);b.classList.toggle('on',state.quick[k]);$$('.quick-toggle').forEach(x=>x.classList.toggle('on',!!state.quick[x.dataset.toggle]));$('#wifiIcon').textContent=state.quick.wifi?'◉':'○';save()}});
@@ -304,7 +352,7 @@ document.addEventListener('pointerdown',e=>{if(!e.target.closest('.panel')&&!e.t
 async function promptDialog(title,label,value=''){const result=await dialog(title,label,[['Create',true,'primary'],['Cancel',false]],`<input id="dialogInput" class="field" value="${escapeHTML(value)}">`);return result?$('#dialogInput')?.value.trim():null}
 
 $('#wallpaperIcons')?.addEventListener('click',e=>{const b=e.target.closest('[data-wallpaper]');if(!b)return;e.preventDefault();e.stopPropagation();setWallpaperForCurrentDesktop(b.dataset.wallpaper)});setInterval(updateClock,1000);updateClock();renderWeather();setTheme(state.theme,state.hue);refreshShell();
-if(state.firstRun||!state.loggedIn)bootSequence();else{setTimeout(()=>bootSequence(),200)}
+if(state.firstRun||!state.loggedIn)bootSequence();else{setTimeout(()=>bootSequence(),200)};setTimeout(()=>{const b=$('#boot');if(b&&!b.classList.contains('hidden'))finishBoot(bootSession,false)},8000)
 })();
 </script>
 <script>
